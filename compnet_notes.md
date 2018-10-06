@@ -53,9 +53,9 @@ In this case, incoming packets are stored in the buffer and then sent to their d
 
 ### Reserve resources in advance
 
-In this case, we can call this "connection switching", the source asks the switch to reserve resources in advance. On each packet, the source writes a unique identifier so that the switch can recognise it. However, if the source goes silent, the resources are still reserved, and other sources cannot use it. We resources are reserved per active connections, and that admission control & forwarding decisions are made per connection.
+In this case, we can call this "connection switching", the source asks the switch to reserve resources in advance. On each packet, the source writes a unique identifier so that the switch can recognise it. However, if the source goes silent, the resources are still reserved, and other sources cannot use it. We say resources are reserved per active connections, and that admission control & forwarding decisions are made per connection.
 
-Packet switching makes an efficient use of ressources, but has a unpredictable performance. On the other hand, "connection switching" has a predictable performance and makes an inefficient use of ressources.  
+Packet switching makes an efficient use of ressources, but has an unpredictable performance. On the other hand, "connection switching" has a predictable performance and makes an inefficient use of ressources.  
 Today's internet uses packet switching. It is easier to implement, but requires congestion control.  
 
 **Congestion control** uses statistical multiplexing in order to manage the available resources. It uses statistical data on user activities and predicts their behaviour to know how to allocate resources. 
@@ -129,3 +129,137 @@ A packet sniffer is a passive receiver that records a copy of every packet that 
 #### Spoofing
 
 Spoofing is the ability to inject packets into the internet with a false source address. To solve this we will need end-point authentication. 
+
+# Application Layer
+
+In a network, two different end systems communicate using processes at the application layer. A **process** is a piece of code that belongs to the application layer.  
+Before diving into software coding, one should have a broad architectural plan for a network application: it dictates how to application is structured over different end systems.  
+
+## Network applications architectures
+
+An application developer will likely draw on one of the two predominant architectural paradigms used in modern applications: the **client-server** architecture or the **peer-to-peer** architecture. 
+
+### The client-server architecture 
+
+![](client_server_architecture.png)
+
+In a client-server architecture, there is an always-on host, called the **server**, which services requests from many other hosts called **clients**. With this architecture, the clients don't directly communicate with each other. Another characteristic is that the server has a fixed IP address. Since the server is always on and has a fixed address, the client can always contact the server by sending a packet to the server's IP address.
+
+Often in a client-server application, the server is incapable of keeping up with all the requests from clients. For this reason, a **data center**, housing a large number of hosts, is often used to create a powerful virtual server. 
+
+### The peer-to-peer architecture
+
+In a peer-to-peer architecture there is very little or no reliance on dedicated servers in data centres. Instead the application exploits direct communication between pairs of intermittently connected hosts, called **peers**. The peers are not owned by service providers, but are instead desktops and laptops controlled by users, with most of the peers residing in homes, universities or offices.
+
+Most of today's traffic-intensive applications are based on P2P architectures: file sharing (BitTorrent), internet telephony (Skype), IPTV...
+
+One of the most compelling features of a peer-to-peer architecture is self-scalability. In a P2P file-sharing application, even though each peer generates workload by requesting files, each peer also adds service capacity to the system by distributing files to other peers. Also, P2P architectures are cost effective since they don't require significant server infrastructure. 
+
+Future P2P applications face three major challenges:
+
+1. **ISP Friendly**: most residential ISPs have been dimensioned for asymmetrical bandwidth usage, that is, for much more downstream traffic than upstream traffic. But P2P video streaming and file distribution applications shift upstream traffic from servers to residential ISPs, thereby putting significant stress on the ISPs.
+2. **Security**: because of their highly distributed and open nature, P2P applications can be a challenge to secure.
+3. **Incentives**: the success of future P2P applications also depends on convincing users to volunteer bandwidth, storage, and computation resources to the applications, which is the challenge of incentive design.
+
+
+## Network application transport services
+
+Processes on two different end systems communicate with each other by exchanging messages across the computer network. A sending process creates and sends messages into the network; a receiving process receives these messages and possibly responds by sending messages back.
+ 
+When a process delivers or receives a message to/from the transport layer, some delivery guaranties are needed: this is the goal of a transport-layer protocol.
+How to choose among the available transport-layer protocols? We need to study the services offered by that protocol and then pick the one that best matches our application's needs.
+
+We can classify the possible services along four dimensions: reliable data transfer, throughput, timing, and security.
+
+### Reliable data transfer
+
+As seen earlier, a packet can get lost within a network. For many applications such as document transfers, financial transactions and e-mail, data loss can have devastating consequences. To support these applications, something has to be done to guarantee that the data sent by one end of the application is delivered correctly and completely to the other end of the application. If a protocol does so, we say it offers **reliable data transfer**. 
+ 
+When a transport-layer protocol doesn't offer reliable data transfer, some data sent by the sending process may never arrive and the receiving process. This may be acceptable for loss-tolerant applications such as conversational audio/video or online streaming where lost data might result in a small glitch in the audio/video—not a crucial impairment.
+
+### Throughput
+
+Multiple sessions will be sharing the bandwidth along the network path, and because these other sessions will be coming and going, the available throughput can fluctuate with time. These observations led to another natural service that a transport-layer protocol could provide, namely, guaranteed available throughput at some specified rate. Such a guaranteed throughput service would appeal to many applications that have throughput requirements, known as **bandwidth-sensitive applications**.
+
+### Timing
+
+A transport-layer protocol can also provide timing guarantees. Such a service would be appealing to interactive real-time applications, such as Internet telephony, virtual environments, teleconferencing, and multiplayer games, all of which require tight timing constraints on data delivery in order to be effective. For non-real-time applications, lower delay is always preferable to higher delay, but no tight constraint is placed on the end-to-end delays.
+
+### Security
+
+A transport protocol can provide an application with one or more security services: providing confidentiality between the two processes, data integrity and end-point authentication.
+
+## Transport services provided by the internet
+
+The Internet makes two transport protocols available to applications, UDP and TCP. When an application developer creates a new network application for the Internet, one of the first decisions he has to make is whether to use UDP or TCP. 
+
+### TCP services
+
+The TCP service model includes a **connection-oriented** service and a **reliable data transfer** service. When an application invokes TCP as its transport protocol, the application receives both of these services from TCP.
+
+**Connection oriented service**: TCP has the client and server exchange transport-layer control information with each other before the application-level messages begin to flow. This so-called **handshaking procedure** alerts the client and server, allowing them to prepare for an onslaught of packets. When the application finishes sending messages, it must tear down the connection. We say TCP is "statefull", in a way it maintains state on communicating processes.
+
+### UDP services
+
+
+UDP is a no-frills, lightweight transport protocol, providing minimal services. It is **connectionless** or "stateless": there is no handshaking before the two processes start to communicate. UDP provides an **unreliable data transfer** service.
+
+### Services not provided by UDP and TCP
+
+TCP and UDP provide no performance guarantees. Concerning security guarantees, it's complicated. We use a **Secure Socket Layer** (**SSL**),  a library that implements a bunch of security ready functions (encrypt, decrypt, check integrity).
+
+## Example: the web
+
+The **HyperText Transfer Protocol** (**HTTP**), the Web’s application-layer protocol, is at the heart of the Web. It is implemented in two programs: a client program and a server program. The client program and server program, executing on different end systems, talk to each other by exchanging HTTP messages. HTTP defines the structure of these messages and how the client and server exchange the messages. 
+
+### Web pages
+
+A webpage is a collection of objects. An object is just a file (it can be an HTML file, a Java applet, a JPEG image...) addressable by a single URL. Most web pages consist of a **base HTML file** and several referrenced objects. 
+
+HTTP defines how Web clients request Web pages from Web servers and how servers transfer Web pages to clients. There are few possible types of HTTP requests, 
+
+- GET: client requests to download a file
+- HEAD: client requests file metadata
+- POST: client provides information
+- PUT: client requests to upload a file
+- DELETE: client requests to delete a file
+
+and a few possible types of HTTP responses: OK, Not Found, Moved permanently, Bad request. Because an HTTP server maintains no information about the clients, HTTP is said to be a **stateless protocol**.
+
+### Non-Persistent and Persistent Connections
+
+When a client-server interaction is taking place over TCP, the application developer needs to make an important decision––should each request/response pair be sent over a separate TCP connection, or should all of the requests and their corresponding responses be sent over the same TCP connection? In the former approach, the application is said to use **non-persistent connections**; and in the latter approach, **persistent connections**.
+
+In the case of **non-persistent connections**, a TCP connection is required to transfer one object (one request message and one response message). After the object is received, the connection is closed. 
+
+![](time_to_request_receive_html_file.png)
+
+The time needed to send one object over the network is two Round Trip Time (RTT) plus the transmission time at the server of the HTML file.
+
+In the case of **persistent connections**, the server leaves the TCP connection open after sending a response. Subsequent requests and responses between the same client and server can be sent over the same connection: an entire webpage can be sent over the same persistant TCP connection. Requests for objects can be made back-to-back, without waiting for replies to pending requests. Typically, the HTTP server closes a connection when it isn’t used for a certain time (a configurable timeout interval).
+
+The default mode of **HTTP uses persistent connections with pipelining**. 
+
+### User-Server Interaction: Cookies
+
+We mentioned that an HTTP server is stateless. This simplifies server design and has permitted engineers to develop high-performance Web servers that can han- dle thousands of simultaneous TCP connections.  
+However, it is often desirable for a website to identify users, either because the server wishes to restrict user access or because it wants to serve content as a function of the user identity. For this purpose, HTTP uses **cookies**. Cookies allow sites to keep track of users.
+
+![](cookies.png)
+
+Cookies can thus be used to create a user session layer on top of stateless HTTP. Although cookies often simplify the Internet experience for the user, they are controversial because they can also be considered as an invasion of privacy.
+
+### Web Caching 
+
+A **web cache**—also called a **proxy server**—is a network entity that satisfies HTTP requests on the behalf of an origin web server. The web cache has its own disk storage and keeps copies of recently requested objects in this storage.
+
+Suppose a browser is requesting an object. Here is what happens:
+
+1. The browser establishes a TCP connection to the Web cache and sends an HTTP request for the object to the web cache.
+2. The web cache checks to see if it has a copy of the object stored locally. If it does, the web cache returns the object within an HTTP response message to the client browser.
+3. If the web cache does not have the object, the Web cache opens a TCP connec- tion to the origin server. The Web cache then sends an HTTP request for the object into the cache-to-server TCP connection. After receiving this request, the origin server sends the object within an HTTP response to the web cache.
+4. When the web cache receives the object, it stores a copy in its local storage and sends a copy, within an HTTP response message, to the client browser (over the existing TCP connection between the client browser and the Web cache).
+
+Web caching is usefull for two reasons. First, it can substantially reduce the response time for a client request. If there is a high-speed connection between the client and the cache, as there often is, and if the cache has the requested object, then the cache will be able to deliver the object rapidly to the client. Second, Web caches can substantially reduce traffic on an institution’s access link to the Internet.
+
+Unfortunately, the copy of an object residing in the cache can be stale. HTTP has a mechanism that allows a cache to verify that its objects are up to date. This mechanism is called the **conditional GET**.
