@@ -197,7 +197,7 @@ The Internet makes two transport protocols available to applications, UDP and TC
 
 The TCP service model includes a **connection-oriented** service and a **reliable data transfer** service. When an application invokes TCP as its transport protocol, the application receives both of these services from TCP.
 
-**Connection oriented service**: TCP has the client and server exchange transport-layer control information with each other before the application-level messages begin to flow. This so-called **handshaking procedure** alerts the client and server, allowing them to prepare for an onslaught of packets. When the application finishes sending messages, it must tear down the connection. We say TCP is "statefull", in a way it maintains state on communicating processes.
+**Connection oriented service**: TCP has the client and server exchange transport-layer control information with each other before the application-level messages begin to flow. This so-called **handshaking procedure** alerts the client and server, allowing them to prepare for an onslaught of packets. When the application finishes sending messages, it must tear down the connection. We say TCP is "stateful", in a way it maintains state on communicating processes.
 
 ### UDP services
 
@@ -214,7 +214,7 @@ The **HyperText Transfer Protocol** (**HTTP**), the Web’s application-layer pr
 
 ### Web pages
 
-A webpage is a collection of objects. An object is just a file (it can be an HTML file, a Java applet, a JPEG image...) addressable by a single URL. Most web pages consist of a **base HTML file** and several referrenced objects. 
+A webpage is a collection of objects. An object is just a file (it can be an HTML file, a Java applet, a JPEG image...) addressable by a single URL. Most web pages consist of a **base HTML file** and several referenced objects. 
 
 HTTP defines how Web clients request Web pages from Web servers and how servers transfer Web pages to clients. There are few possible types of HTTP requests, 
 
@@ -242,7 +242,7 @@ The default mode of **HTTP uses persistent connections with pipelining**.
 
 ### User-Server Interaction: Cookies
 
-We mentioned that an HTTP server is stateless. This simplifies server design and has permitted engineers to develop high-performance Web servers that can han- dle thousands of simultaneous TCP connections.  
+We mentioned that an HTTP server is stateless. This simplifies server design and has permitted engineers to develop high-performance Web servers that can handle thousands of simultaneous TCP connections.  
 However, it is often desirable for a website to identify users, either because the server wishes to restrict user access or because it wants to serve content as a function of the user identity. For this purpose, HTTP uses **cookies**. Cookies allow sites to keep track of users.
 
 ![](cookies.png)
@@ -257,9 +257,140 @@ Suppose a browser is requesting an object. Here is what happens:
 
 1. The browser establishes a TCP connection to the Web cache and sends an HTTP request for the object to the web cache.
 2. The web cache checks to see if it has a copy of the object stored locally. If it does, the web cache returns the object within an HTTP response message to the client browser.
-3. If the web cache does not have the object, the Web cache opens a TCP connec- tion to the origin server. The Web cache then sends an HTTP request for the object into the cache-to-server TCP connection. After receiving this request, the origin server sends the object within an HTTP response to the web cache.
+3. If the web cache does not have the object, the Web cache opens a TCP connection to the origin server. The Web cache then sends an HTTP request for the object into the cache-to-server TCP connection. After receiving this request, the origin server sends the object within an HTTP response to the web cache.
 4. When the web cache receives the object, it stores a copy in its local storage and sends a copy, within an HTTP response message, to the client browser (over the existing TCP connection between the client browser and the Web cache).
 
-Web caching is usefull for two reasons. First, it can substantially reduce the response time for a client request. If there is a high-speed connection between the client and the cache, as there often is, and if the cache has the requested object, then the cache will be able to deliver the object rapidly to the client. Second, Web caches can substantially reduce traffic on an institution’s access link to the Internet.
+Web caching is useful for two reasons. First, it can substantially reduce the response time for a client request. If there is a high-speed connection between the client and the cache, as there often is, and if the cache has the requested object, then the cache will be able to deliver the object rapidly to the client. Second, Web caches can substantially reduce traffic on an institution’s access link to the Internet.
 
 Unfortunately, the copy of an object residing in the cache can be stale. HTTP has a mechanism that allows a cache to verify that its objects are up to date. This mechanism is called the **conditional GET**.
+
+## Example: P2P application (BitTorrent)
+
+In a P2P architecture, there is minimal (or no) reliance on always-on infrastructure servers. Instead, pairs of intermittently connected hosts, called peers, communicate directly with each other. The peers are not owned by a service provider, but are instead desktops and laptops controlled by users.
+
+### File Distribution
+
+In P2P file distribution, each peer can redistribute any portion of the file it has received to any other peers, thereby assisting the server in the distribution process.
+
+Consider a simple quantitative model for distributing a file to a fixed set of peers for both architecture types.
+Denote the upload rate of the server’s access link by *u_s*, the upload rate of the i_th peer’s access link by *u_i*, and the download rate of the i_th peer’s access link by *d_i*. Also denote the size of the file to be distributed (in bits) by *F* and the number of peers that want to obtain a copy of the file by *N*.
+
+Let’s first determine the distribution time for the client-server architecture, which we denote by *D_cs*:
+
+- The server must transmit one copy of the file to each of the *N* peers. Thus the server must transmit *NF* bits. Since the server’s upload rate is *u_s*, the time to distribute the file must be at least *NF/u_s*.
+- Let *d_min* denote the download rate of the peer with the lowest download rate, that is, `dmin = min{d1,dp,...,dN}`. The peer with the lowest download rate cannot obtain all F bits of the file in less than *F/d_min* seconds. Thus the minimum distribution time is at least *F/d_min*.
+
+![](file_distr_cs.png)
+
+Let’s now go through a similar analysis for the P2P architecture:
+
+- At the beginning of the distribution, only the server has the file. To get this file into the community of peers, the server must send each bit of the file at least once into its access link. Thus, the minimum distribution time is at least *F/u_s*.
+- As with the client-server architecture, the peer with the lowest download rate cannot obtain all F bits of the file in less than *F/d_min* seconds. Thus the minimum distribution time is at least *F/d_min*. 
+- Finally, observe that the total upload capacity of the system as a whole is equal to the upload rate of the server plus the upload rates of each of the individual peers, that is, `u_total = u_s + u1 + ... + uN`. The system must deliver (upload) *F* bits to each of the *N* peers, thus delivering a total of *NF* bits. This cannot be done at a rate faster than *u_total*. Thus, the minimum distribution time is also at least NF/(u_s + u1 + ... + uN).
+
+![](file_distr_p2p.png)
+
+Therefore, applications with the P2P architecture can be self-scaling. This scalability is a direct consequence of peers being redistributors as well as consumers of bits. In other words, a peer-to-peer architecture scales better than a client-server architecture.
+
+![](cs_vs_p2p.png)
+
+### File retrieving
+
+The following steps are followed to retrieve content from a peer-to-peer file distribution system:
+
+- Get the metadata file and read data file IDs
+- Find data file locations
+	- Ask tracker, or
+	- Ask distributed hash table (DHT)
+- Get datas file from peers 
+
+A **tracker** is an end-system that knows the IP addresses of the peers that store a file.
+
+A **DHT** is a distributed system that knows the IP addresses of the peers that store a file. Many end-systems work together to answer a question: one DHT member may not kow the answer, but can redirect you toward another member who does know it. 
+
+The **metadata file** can either be on a web server or on a peer. If it's on a peer, you learn its ID from a web server and its location from a tracker or a DHT.
+
+### Distributed Hash Table
+
+A DHT is a distributed database which stors (key, value) pairs. In this case, a key is the content name and the value is the IP address of a peer that has a copy of the content. In the P2P system, each peer will only hold a small subset of the totality of the (key, value) pairs.
+
+Each peer (value) has an integer identifier, and so does content names (keys). Peers are then organized in a circle so that each peer only keeps track of its immediate successor and immediate predecessor.
+
+![](circular_dht.png)
+
+If peer 3 is asked about key 11, it will forward the request to its the neighbor closest to destination, and so until an answer is received. 
+
+## Domain Name System
+
+End-hosts are identified by **hostnames**. Hostnames such as *google.com* or *epfl.ch* are mnemonics and are therefore appreciated by humans. On the other hand, we know hosts are also identified by IP addresses.  
+People refer to hosts with their hostnames and routers with their IP addresses.
+The Domain Name System translates hostnames to IP addresses. 
+
+The DNS is a **distributed database** implemented in a hierarchy of DNS servers, and an **application-layer protocol** that allows hosts to query the distributed database. 
+
+In order to go on the epfl website:
+
+1. The user machine runs the client side of the DNS application.
+2. The browser extracts the hostname, www.pefl.ch, from the URL
+and passes the hostname to the client side of the DNS application.
+3. The DNS client sends a query containing the hostname to a DNS server.
+4. The DNS client eventually receives a reply, which includes the IP address for
+the hostname.
+5. Once the browser receives the IP address from DNS, it can initiate a TCP connection to the HTTP server process located at port 80 at that IP address.
+
+### How DNS works
+
+A centralised database in a single DNS server simply doesn’t scale: it would represent a single point of failure, experience huge traffic volumes, be far from some clients and require lots of maintenance. 
+
+![](dns_hierarchy.png)
+
+In reality, DNS uses a large number of servers organised in a hierarchical fashion and distributed around the world. No DNS server has all the mappings for all the hosts on the internet. Instead, the mappings are distributed across the DNS servers. There are three classes of DNS servers—root DNS servers, top-level domain (TLD) DNS servers, and authoritative DNS servers. 
+
+DNS uses the **UDP protocol**, because it is faster than initiating TCP connections at each requests.
+
+
+#### Root DNS servers
+
+In the Internet there are 13 root DNS servers, most of which are located in North America. Although we have referred to each of the 13 root DNS servers as if it were a single server, each “server” is actually a network of replicated servers, for both security and reliability purposes. 
+
+#### Top-level domain (TLD) servers
+
+These servers are responsible for top-level domains such as com, org, net, edu, and gov, and all of the country top-level domains such as uk, fr, ca, and jp.
+
+#### Authoritative DNS servers
+
+Every organisation with publicly accessible hosts (such as Web servers and mail servers) on the Internet must provide publicly accessible DNS records that map the names of those hosts to IP addresses. An organisation’s authoritative DNS server houses these DNS records.
+
+#### Local DNS servers
+
+There is another important type of DNS server called the local DNS server. A local DNS server does not strictly belong to the hierarchy of servers but is nevertheless central to the DNS architecture.  
+
+When a host connects to an ISP, the ISP provides the host with the IP addresses of one or more of its local DNS servers. When a host makes a DNS query, the query is sent to the local DNS server, which acts a proxy, forwarding the query into the DNS server hierarchy.
+
+When trying to reach an endhost, say `www.epfl.ch`, the host first sends a DNS query message to its local DNS. The query message contains the hostname to be translated, namely, `www.epfl.ch`. The local DNS server forwards the query message to a root DNS server. The root DNS server takes note of the `ch` suffix and returns to the local DNS server a list of IP addresses for TLD servers responsible for `ch`. The local DNS server then resends the query message to one of these TLD servers. The TLD server takes note of the `epfl.ch` suffix and responds with the IP address of the authoritative DNS server for EPFL. Finally, the local DNS server resends the query message directly to the `epfl.ch` DNS server, which responds with the IP address of `www.epfl.ch`. 
+
+In general, the query from the requesting host to the local DNS server is **recursive**, and the remaining queries are **iterative**.
+
+### DNS caching
+
+DNS extensively exploits **DNS caching** in order to improve the delay performance and to reduce the number of DNS messages ricocheting around the Internet. 
+
+In a query chain, when a DNS server receives a DNS reply (containing, for example, a mapping from a hostname to an IP address), it can cache the mapping in its local memory.  
+If a hostname/IP address pair is cached in a DNS server and another query arrives to the DNS server for the same hostname, the DNS server can provide the desired IP address, even if it is not authoritative for the hostname.  
+Because hosts and mappings between hostnames and IP addresses are by no means permanent, DNS servers discard cached information after a period of time .
+
+### DNS attacks
+
+DNS servers are vulnerable to attacks. However the root DNS servers are one of the best guarded servers.
+
+#### Spoofing
+
+An attacker can intercept a DNS request and bombard the host with false IP addresses. The DNS server might even answer, but it will be too late since the client would've listened to the first responses. 
+
+#### Denail-of-Service
+
+An attacker can make root or TLD DNS servers unavailable to the rest of the world.
+
+#### Cache Trashing
+
+An attacker can send requests for hostnames that are not frequent so that the DNS server caches them and adds delay for regular frequent requests.
