@@ -273,7 +273,7 @@ In a P2P architecture, there is minimal (or no) reliance on always-on infrastruc
 In P2P file distribution, each peer can redistribute any portion of the file it has received to any other peers, thereby assisting the server in the distribution process.
 
 Consider a simple quantitative model for distributing a file to a fixed set of peers for both architecture types.
-Denote the upload rate of the server’s access link by *u_s*, the upload rate of the i_th peer’s access link by *u_i*, and the download rate of the i_th peer’s access link by *d_i*. Also denote the size of the file to be distributed (in bits) by *F* and the number of peers that want to obtain a copy of the file by *N*.
+Denote the upload rate of the server’s access link by *u_s*, the upload rate of the i\_th peer’s access link by *u\_i*, and the download rate of the i\_th peer’s access link by *d_i*. Also denote the size of the file to be distributed (in bits) by *F* and the number of peers that want to obtain a copy of the file by *N*.
 
 Let’s first determine the distribution time for the client-server architecture, which we denote by *D_cs*:
 
@@ -306,19 +306,19 @@ The following steps are followed to retrieve content from a peer-to-peer file di
 
 A **tracker** is an end-system that knows the IP addresses of the peers that store a file.
 
-A **DHT** is a distributed system that knows the IP addresses of the peers that store a file. Many end-systems work together to answer a question: one DHT member may not kow the answer, but can redirect you toward another member who does know it. 
+A **DHT** is a distributed system that knows the IP addresses of the peers that store a file. Many end-systems work together to answer a question: one DHT member may not know the answer, but can redirect you toward another member who does know it. 
 
 The **metadata file** can either be on a web server or on a peer. If it's on a peer, you learn its ID from a web server and its location from a tracker or a DHT.
 
 ### Distributed Hash Table
 
-A DHT is a distributed database which stors (key, value) pairs. In this case, a key is the content name and the value is the IP address of a peer that has a copy of the content. In the P2P system, each peer will only hold a small subset of the totality of the (key, value) pairs.
+A DHT is a distributed database which stores (key, value) pairs. In this case, a key is the content name and the value is the IP address of a peer that has a copy of the content. In the P2P system, each peer will only hold a small subset of the totality of the (key, value) pairs.
 
-Each peer (value) has an integer identifier, and so does content names (keys). Peers are then organized in a circle so that each peer only keeps track of its immediate successor and immediate predecessor.
+Each peer (value) has an integer identifier, and so does content names (keys). Peers are then organised in a circle so that each peer only keeps track of its immediate successor and immediate predecessor.
 
 ![](circular_dht.png)
 
-If peer 3 is asked about key 11, it will forward the request to its the neighbor closest to destination, and so until an answer is received. 
+If peer 3 is asked about key 11, it will forward the request to its the neighbour closest to destination, and so until an answer is received. 
 
 ## Domain Name System
 
@@ -331,10 +331,10 @@ The DNS is a **distributed database** implemented in a hierarchy of DNS servers,
 In order to go on the epfl website:
 
 1. The user machine runs the client side of the DNS application.
-2. The browser extracts the hostname, www.pefl.ch, from the URL
+2. The browser extracts the hostname, www.epfl.ch, from the URL
 and passes the hostname to the client side of the DNS application.
 3. The DNS client sends a query containing the hostname to a DNS server.
-4. The DNS client eventually receives a reply, which includes the IP address for
+4. The DNS client eventually er a reply, which includes the IP address for
 the hostname.
 5. Once the browser receives the IP address from DNS, it can initiate a TCP connection to the HTTP server process located at port 80 at that IP address.
 
@@ -387,10 +387,142 @@ DNS servers are vulnerable to attacks. However the root DNS servers are one of t
 
 An attacker can intercept a DNS request and bombard the host with false IP addresses. The DNS server might even answer, but it will be too late since the client would've listened to the first responses. 
 
-#### Denail-of-Service
+#### Denial-of-Service
 
 An attacker can make root or TLD DNS servers unavailable to the rest of the world.
 
 #### Cache Trashing
 
 An attacker can send requests for hostnames that are not frequent so that the DNS server caches them and adds delay for regular frequent requests.
+
+# Transport layer
+
+A transport-layer protocol provides for **logical communication** between application processes running on different hosts. By logical communication, we mean that from an application’s perspective, it is as if the hosts running the processes were directly connected; in reality, the hosts may be on opposite sides of the planet, connected via numerous routers and a wide range of link types. 
+
+> On the sending side, the transport layer converts the application-layer messages it receives from a sending application process into transport-layer packets, known as **transport-layer segments** in Internet terminology. This is done by breaking the application messages into smaller chunks and adding a transport-layer header to each chunk to create the transport-layer segment. The transport layer then passes the segment to the network layer at the sending end system, where the segment is encapsulated within a network-layer packet (a datagram) and sent to the destination.
+> 
+> On the receiving side, the network layer extracts the transport-layer segment from the datagram and passes the segment up to the transport layer. The transport layer then processes the received segment, making the data in the segment available to the receiving application.
+
+More than one transport-layer protocol may be available to network applications. For example, the Internet has two protocols—TCP and UDP. Each of these protocols provides a different set of transport-layer services to the invoking application.
+
+The transport layer lies just above the network layer in the protocol stack. Whereas a transport-layer protocol provides logical communication between processes running on different hosts, a network-layer protocol provides logical communication between hosts.
+
+## The transport layer in the Internet 
+
+The Internet makes two distinct transport-layer protocols available to the application layer:
+
+- **UDP** (User Datagram Protocol), which provides an unreliable, connectionless service to the invoking application, 
+- **TCP** (Transmission Control Protocol), which provides a reliable, connection-oriented service to the invoking application. 
+
+The network-layer protocol is the **Internet Protocol (IP)** and it provides a logical communication between hosts. It is a **best-effort delivery service**: it makes the best effort to deliver segments between communicating hosts, but it makes no guarantees.  
+It does not guarantee segment delivery, nor the orderly delivery of segments, nor the integrity of the data in the segments. 
+
+UDP and TCP provide delivery services between two processes running on the end-systems. Extending host-to-host delivery (which is done by the Internet Protocol) to process-to-process delivery is called **multiplexing** and **demultiplexing**.
+
+## Multiplexing and Demultiplexing 
+
+A multiplexing/demultiplexing service is needed for all computer networks. To keep it simple we’ll discuss this basic transport-layer service in the context of the Internet.
+
+- The job of delivering the data in a transport-layer segment to the correct socket is called **demultiplexing**.
+- The job of gathering data chunks at the source host from different sockets, encapsulating each data chunk with header information (that will later be used in demultiplexing) to create segments, and passing the segments to the network layer is called **multiplexing**.
+
+**Sockets**  
+A process (as part of a network application) can have one or more **sockets**, doors through which data passes from the network to the process and through which data passes from the process to the network. Because at any given time there can be more than one socket in the receiving host, each socket has a **unique identifier**.
+
+Transport-layer multiplexing requires sockets to have **unique identifiers**, and that each segments have special fields that indicate the socket to which the segment is to be delivered. These fields are the source **port number** and the destination port number. Each port number is a 16-bit number ranging from 0 to 65535. Port numbers ranging from 0 to 1023 are called **well-known port numbers** and are restricted, which means that they are reserved for use by well-known application protocols such as HTTP (which uses port number 80) and FTP (which uses port number 21).
+
+![](port_number_field.png)
+
+### Connectionless Multiplexing and Demultiplexing
+
+A UDP socket is fully identified by the two tuple: `(destination IP, destination port number)`. If two UDP segments have different source IP addresses and/or source port numbers, but have the same destination IP address and destination port number, then the two segments will be directed to the same destination process via the same destination socket. The source port number serves as part of the "return address".
+
+### Connection-oriented Multiplexing and Demultiplexing
+
+A TCP socket is identified by the four-tuple: `(source IP address, source port number, destination IP address, destination port number)`. Thus, when a TCP segment arrives from the network to a host, the host **uses all four values** to direct (demultiplex) the segment to the appropriate socket. Two arriving TCP segments with different source IP addresses or source port numbers will be directed to two different sockets. A process must use a different TCP connection socket per remote process.
+
+## Principles of Reliable Data Transfer
+
+It is the responsibility of a reliable data transfer protocol to implement reliable data delivery. 
+
+One assumption we’ll adopt is that packets will be delivered in the order in which they were sent, with some packets possibly being lost.
+
+We will consider the following actions:
+
+- The sending side of the data transfer protocol will be invoked from above by a call to `rdt_send()`.
+- On the receiving side, `rdt_rcv()` will be called when a packet arrives from the receiving side of the channel.
+- When the `rdt` protocol wants to deliver data to the upper layer, it will do so by calling `deliver_data()`.
+
+### Building a Reliable Data Transfer Protocol
+
+#### Reliable Data Transfer over a Perfectly Reliable Channel: rdt1.0
+
+The case `rdt1.0` is the simplest. The underlying channel is completely reliable. 
+![](rdt1_0.png)
+
+The sending side of `rdt` simply accepts data from the upper layer via the `rdt_send(data)` event, creates a packet containing the data (via the action `make_pkt(data)`) and sends the packet into the channel.   
+On the receiving side, rdt receives a packet from the underlying channel via the `rdt_rcv(packet)` event, removes the data from the packet (via the action `extract(packet, data)`) and passes the data up to the upper layer (via the action `deliver_data(data)`).
+
+All packet flow is from the sender to receiver; with a perfectly reliable channel there is no need for the receiver side to provide any feedback to the sender since nothing can go wrong.
+
+#### Reliable Data Transfer over a Channel with Bit Errors: rdt2.0
+
+In a computer network setting, reliable data transfer protocols based on retransmission are known as ARQ (Automatic Repeat reQuest) protocols.
+Three protocol capabilities are required in ARQ protocols to handle the presence of bit errors:
+
+- **Error detection:** checksums are used for this purpose
+- **Receiver feedback:** the only way for the sender to learn whether or not a packet was received correctly is for the receiver to provide explicit feedback to the sender. The positive (ACK) and negative (NAK) acknowledgment replies in the message-dictation scenario are examples of such feedback. In principle, these packets need only be one bit long; for example, a 0 value could indicate a NAK and a value of 1 could indicate an ACK. 
+- **Retransmission:** a packet that is received in error at the receiver will be retransmitted by the sender.
+
+![](rdt2_0.png)
+
+The behaviour of the `rdt2.0` protocol is described by the above FSMs. Because of their waiting behaviour, such protocols are called **stop and wait protocols**. 
+
+However, this protocol fails in the case a NACK or ACK packet gets corrupted. 
+
+A simple solution to this problem is to add a new field to the data packet and have the sender number its data packets by putting a sequence number into this field. The receiver then need only check this sequence number to determine whether or not the received packet is a retransmission.  
+Since we are currently assuming a channel that does not lose packets, ACK and NAK packets do not themselves need to indicate the sequence number of the packet they are acknowledging. The sender knows that a received ACK or NAK packet (whether garbled or not) was generated in response to its most recently transmitted data packet.
+
+An improvement of the protocol is that the receiver must now include the sequence number of the packet being acknowledged by an ACK message, and the sender must now check the sequence number of the packet being acknowledged by a received ACK message.
+
+#### Reliable Data Transfer over a Lossy Channel with Bit Errors: rdt3.0
+
+Suppose now that in addition to corrupting bits, the underlying channel can lose packets as well. 
+
+Here, the burden of detecting and recovering from lost packets is put on the sender.  
+The sender transmits a data packet and either that packet, or the receiver’s ACK of that packet, gets lost. In either case, no reply is forthcoming at the sender from the receiver. The sender must clearly wait at least as long as a round-trip delay between the sender and receiver (which may include buffering at intermediate routers) plus whatever amount of time is needed to process a packet at the receiver. The approach thus adopted in practice is for the sender to judiciously choose a time value, a **timeout**, such that packet loss is likely, although not guaranteed, to have happened. If an ACK is not received within this time, the packet is retransmitted.  
+Implementing a time-based retransmission mechanism requires a **countdown timer** that can interrupt the sender after a given amount of time has expired. The sender will thus need to be able to (1) start the timer each time a packet (either a first-time packet or a retransmission) is sent, (2) respond to a timer interrupt (taking appropriate actions), and (3) stop the timer.
+
+#### Pipelined Reliable Data Transfer Protocols
+
+Protocol `rdt3.0` is a functionally correct protocol, but it is unlikely that anyone would be happy with its performance, particularly in today’s high-speed networks. At the heart of `rdt3.0`’s performance problem is the fact that it is a stop-and-wait protocol.
+
+![](stopwait_pipeline.png)
+
+We define the utilisation of the sender as the fraction of time the sender is actually busy sending bits into the channel:
+![](utilization.png)
+
+In pipelined transfer protocols, the sender is allowed to send multiple packets without waiting for acknowledgments. Since the many in-transit sender-to-receiver packets can be visualised as filling a pipeline, this technique is known as **pipelining**.  
+The consequences for reliable data transfer protocols are:
+
+- The range of sequence numbers must be increased, since each in-transit packet (not counting retransmissions) must have a unique sequence number and there may be multiple, in-transit, unacknowledged packets.
+- The sender and receiver sides of the protocols may have to buffer more than one packet. Minimally, the sender will have to buffer packets that have been transmitted but not yet acknowledged. Buffering of correctly received packets may also be needed at the receiver, as discussed below. 
+- The range of sequence numbers needed and the buffering requirements will depend on the manner in which a data transfer protocol responds to lost, corrupted, and overly delayed packets. Two basic approaches toward pipelined error recovery can be identified: Go-Back-N and selective repeat.
+
+#### Go-Back-N (GBN) 
+
+In a Go-Back-N (GBN) protocol, the sender is allowed to transmit multiple packets (when available) without waiting for an acknowledgment, but is constrained to have no more than some maximum allowable number, N (**window size**), of unacknowledged packets in the pipeline. The receiver has a window of size 1.
+
+If a segment from sender to receiver is lost, the receiver discards all the segments with sequence number greater than the sequence number of the dropped packet, answering with ACK with this sequence number. (no packet re-ordering) The sender will wait for ACK in order to move the window and send new packets. The wait is not infinite, after a certain time a timeout will occur and the sender will retransmit all the packets in the sending window. In a Go-Back-N protocol, **acknowledgements are cumulative**: if sender receives ACK3 he will know that all the packets from 0 to 3 have been received, even if hasn't received ACK2. When the sender retransmits, it retransmits all the un-ACK-ed segments. 
+
+#### Selective Repeat
+
+There are scenarios in which GBN suffers from performance problems. In particular, when the window size and bandwidth-delay product are both large, many packets can be in the pipeline. A single packet error can thus cause GBN to retransmit a large number of packets, many unnecessarily.
+
+Selective-repeat protocols avoid unnecessary retransmis- sions by having the sender retransmit only those packets that it suspects were received in error (that is, were lost or corrupted) at the receiver. This individual retransmission will require that the receiver individually acknowledges correctly received packets. A window size of N will again be used to limit the number of outstanding, unacknowledged packets in the pipeline. Here, the sender will have already received ACKs for some of the packets in the window.
+
+The SR receiver will acknowledge a correctly received packet whether or not it is in order. Out-of-order packets are buffered until any missing packets (that is, packets with lower sequence numbers) are received.
+
+The receiver re-acknowledges (rather than ignores) already received packets with certain sequence numbers below the current window base. If the receiver were not to acknowledge this packet, the sender’s window would never move forward.
+
+![](selective_repeat.png)
