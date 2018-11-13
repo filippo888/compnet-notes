@@ -526,3 +526,163 @@ The SR receiver will acknowledge a correctly received packet whether or not it i
 The receiver re-acknowledges (rather than ignores) already received packets with certain sequence numbers below the current window base. If the receiver were not to acknowledge this packet, the sender’s window would never move forward.
 
 ![](selective_repeat.png)
+
+## Connection oriented transport: TCP
+
+### The TCP connection
+
+The TCP connection is said to be **connection oriented** because before one application process can begin to send data to another, the two processes must first “handshake” with each other. 
+
+A TCP connection provides a **full-duplex** service: if there is a TCP connection between Process A on one host and Process B on another host, then application- layer data can flow from Process A to Process B at the same time as application- layer data flows from Process B to Process A.
+
+
+#### Establishment of a TCP connection: three-way handshake
+
+The client application process first informs the client transport layer that it wants to establish a connection to a process in the server. TCP in the client then proceeds to establish a TCP connection with TCP in the server. 
+
+The client first sends a special TCP segment; the server responds with a second special TCP segment; and finally the client responds again with a third special segment. The first two segments carry no payload, that is, no application-layer data; the third of these segments may carry a payload.
+
+### Sequence and acknowledgement numbers
+
+Two of the most important fields in the TCP segment header are the sequence number field and the acknowledgment number field.
+
+TCP views data as an unstructured, but ordered, stream of bytes. TCP’s use of sequence numbers reflects this view in that sequence numbers are over the stream of transmitted bytes and not over the series of transmitted segments. The **sequence number** for a segment is therefore the byte-stream number of the first byte in the segment. 
+
+> Suppose that a process in Host A wants to send a stream of data to a process in Host B over a TCP connection. The TCP in Host A will implicitly number each byte in the data stream. Suppose that the data stream consists of a file consisting of 500,000 bytes, that the MSS is 1,000 bytes, and that the first byte of the data stream is numbered 0. TCP constructs 500 segments out of the data stream. The first segment gets assigned sequence number 0, the second segment gets assigned sequence number 1,000, the third segment gets assigned sequence number 2,000, and so on.
+
+Each of the segments that arrive from Host B has a sequence number for the data flowing from B to A. The acknowledgment number that Host A puts in its segment is the sequence number of the next byte Host A is expecting from Host B. 
+
+> Suppose that Host A has received all bytes numbered 0 through 535 from B and suppose that it is about to send a segment to Host B. Host A is waiting for byte 536 and all the subsequent bytes in Host B’s data stream. So Host A puts 536 in the acknowledgment number field of the segment it sends to B
+
+Because TCP only acknowledges bytes up to the first missing byte in the stream, TCP is said to provide **cumulative acknowledgments**.
+
+### Timeout and retransmissions
+
+TCP uses a timeout/retransmit mechanism to recover from lost segments.   
+The timeout should be larger than the connection’s round-trip time (RTT), that is, the time from when a segment is sent until it is acknowledged. But how much larger? How should the RTT be estimated in the first place? Should a timer be associated with each and every unacknowledged segment?
+
+#### Estimating the round-trip time
+
+The sample RTT, denoted `SampleRTT`, for a segment is the amount of time between when the segment is sent (that is, passed to IP) and when an acknowledgment for the segment is received. Instead of measuring a `SampleRTT` for every transmitted segment, most TCP implementations take only one `SampleRTT` measurement at a time. Upon obtaining a new SampleRTT, TCP updates `EstimatedRTT` according to the following formula: `EstimatedRTT = (1 – 􏰂a) • EstimatedRTT + 􏰂 a • SampleRTT`, where a usually equals 0.125.
+
+The RTT variation, `DevRTT`, is an estimate of how much `SampleRTT` typically deviates from `EstimatedRTT`: 
+
+```
+DevRTT = (1 – a 􏰃) • DevRTT + b􏰃 •| SampleRTT – EstimatedRTT |
+```
+where b usually equals 0.25.
+
+#### Setting the Timeout Interval
+
+Clearly, the interval should be greater than or equal to `EstimatedRTT`, or unnecessary retransmissions would be sent. But the timeout interval should not be too much larger than `EstimatedRTT`; otherwise, when a segment is lost, TCP would not quickly retransmit the segment, leading to large data transfer delays. It is therefore desirable to set the timeout equal to the `EstimatedRTT` plus some margin. The margin should be large when there is a lot of fluctuation in the `SampleRTT` values; it should be small when there is little fluctuation. The value of `DevRTT` should thus come into play here. All of these considerations are taken into account in TCP’s method for determining the retransmission timeout interval:
+
+``` TimeoutInterval = EstimatedRTT + 4 • DevRTT ```
+
+An initial `TimeoutInterval` value of 1 second is recommended. Also, when a timeout occurs, the value of `TimeoutInterval` is doubled to avoid a premature timeout occurring for a subsequent segment that will soon be acknowledged. TCP uses feedback from the communication channel to adapt the behaviour of the protocol in real time. 
+
+### Reliable Data Transfer
+
+TCP creates a reliable data transfer service on top of IP’s unreliable best- effort service. TCP’s reliable data transfer service ensures that the data stream that a process reads out of its TCP receive buffer is uncorrupted, without gaps, without duplication, and in sequence; that is, the byte stream is exactly the same byte stream that was sent by the end system on the other side of the connection. The recommended TCP timer management procedures use only a single retransmission timer, even if there are multiple transmitted but not yet acknowledged segments. 
+
+> Example:  
+> ![](TCP_retransmission.png)
+> Host A sends two segments back to back. The first segment has sequence number 92 and 8 bytes of data, and the second segment has sequence number 100 and 20 bytes of data. Suppose that both segments arrive intact at B, and B sends two separate acknowledgments for each of these segments. The first of these acknowledgments has acknowledgment number 100; the second has acknowledgment number 120. Suppose now that neither of the acknowledgments arrives at Host A before the timeout. When the timeout event occurs, Host A resends the first segment with sequence number 92 and restarts the timer. As long as the ACK for the second segment arrives before the new timeout, the second segment will not be retransmitted.
+> 
+> In another scenario, suppose Host A sends the two segments, exactly as in the above example. The acknowledgment of the first segment is lost in the network, but just before the timeout event, Host A receives an acknowledgment with acknowledgment number 120. Host A therefore knows that Host B has received everything up through byte 119; so Host A does not resend either of the two segments. 
+
+#### Doubling the timeout interval 
+
+TCP retransmits the not-yet-acknowledged segment with the smallest sequence number, as described above. But each time TCP retransmits, it sets the next timeout interval to twice the previous value, rather than deriving it from the last estimated RTT. However, whenever the timer is started after either of the two other events (that is, data received from application above, and ACK received), the timeout interval is derived from the most recently estimated RTT.
+
+#### Fast retransmit 
+
+
+One of the problems with timeout-triggered retransmissions is that the timeout period can be relatively long. When a segment is lost, this long timeout period forces the sender to delay resending the lost packet, thereby increasing the end-to-end delay. Fortunately, the sender can often detect packet loss well before the time-out event occurs by noting so-called duplicate ACKs. A duplicate ACK is an ACK that re-acknowledges a segment for which the sender has already received an earlier acknowledgment. 
+
+In the case that three duplicate ACKs are received, the TCP sender performs a fast retransmit , retransmitting the missing segment before that segment’s timer expires:
+![](TCP_fast_retransmit.png)
+
+### Flow Control
+
+TCP provides a **flow-control service** to its applications to eliminate the possibility of the sender overflowing the receiver’s buffer. Flow control is thus a speed-matching service, matching the rate at which the sender is sending against the rate at which the receiving application is reading.
+
+TCP provides flow control by having the sender maintain a variable called the **receive window**. Informally, the receive window is used to give the sender an idea of how much free buffer space is available at the receiver. Because TCP is full-duplex, the sender at each side of the connection maintains a distinct receive window. The receiver provides that receiver window that is equal to the free space in the TCP receive buffer (it specifies how many bytes in can receive). The sender then sends up to this number of bytes: he must wait for the receiver window to *open* (sender keeps probing receiver with data to know when  receiver's window opens).
+
+> Flow control slows down the sender based on the receiver status.
+
+### Congestion Control
+
+Packet retransmission treats a symptom of network congestion (the loss of a specific transport-layer segment) but does not treat the cause of network congestion (too many sources attempting to send data at too high a rate). To treat the cause of network congestion, mechanisms are needed to throttle senders in the face of network congestion.
+
+#### Causes and costs of congestion
+
+Congestion causes large queuing delays as the packet-arrival rate nears the link capacity, and lots of ressource waste:
+
+- The sender must perform retransmissions in order to compensate for dropped (lost) packets due to buffer overflow.
+- Unneeded retransmissions by the sender in the face of large delays may cause a router to use its link bandwidth to forward unneeded copies of a packet.
+- When a packet is dropped along a path, the transmission capacity that was used at each of the upstream links to forward that packet to the point at which it is dropped ends up having been wasted.
+
+#### Approaches to congestion control
+
+At the broadest level, we can distinguish among congestion-control approaches by whether the network layer provides any explicit assistance to the transport layer for congestion-control purposes.
+
+##### End-to-end congestion control
+In an end-to-end approach to congestion control, the network layer provides no explicit support to the transport layer for congestion-control purposes. Even the presence of congestion in the network must be inferred by the end systems based only on observed network behavior (for example, packet loss and delay). 
+
+##### Network-assisted congestion control
+
+With network-assisted congestion control, network-layer components (that is, routers) provide explicit feedback to the sender regarding the congestion state in the network. This feedback may be as simple as a single bit indicating congestion at a link.
+
+#### TCP Congestion Control
+
+The approach taken by TCP is to have each sender limit the rate at which it sends traffic into its connection as a function of perceived network congestion. If a TCP sender perceives that there is little congestion on the path between itself and the destination, then the TCP sender increases its send rate; if the sender perceives that there is congestion along the path, then the sender reduces its send rate.
+
+##### Limiting the rate at which sender sends traffic into its connection
+
+The TCP congestion-control mechanism operating at the sender keeps track of an additional variable, the congestion window. The **congestion window**, imposes a constraint on the rate at which a TCP sender can send traffic into the network. By adjusting the value of the congestion window, the sender can therefore adjust the rate at which it sends data into its connection.
+
+##### Detecting congestion on the path between sender and destination
+
+A “loss event” at a TCP sender as the occurrence of either a timeout or the receipt of three duplicate ACKs from the receiver. When there is excessive congestion, then one (or more) router buffers along the path overflows, causing a datagram (con- taining a TCP segment) to be dropped. The dropped datagram, in turn, results in a loss event at the sender—either a timeout or the receipt of three duplicate ACKs—which is taken by the sender to be an indication of congestion on the sender-to-receiver path.
+
+##### Basic Algorithm for TCP Congestion Control
+
+TCP will take the arrival of acknowledgments as an indication that all is well and will use acknowledgments to increase its congestion window size.  
+If acknowledgments arrive at a relatively slow rate, then the congestion window will be increased at a relatively slow rate. If acknowledgments arrive at a high rate, then the congestion window will be increased more quickly. TCP is said to be **self clocking**: it infers the adequate congestion window based on acknowlegments.
+
+TCP uses the following guiding principles:
+
+- A lost segment implies congestion, and hence, the TCP sender’s rate should be decreased when a segment is lost: 
+- An acknowledged segment indicates that the network is delivering the sender’s segments to the receiver, and hence, the sender’s rate can be increased when an ACK arrives for a previously unacknowledged segment.
+
+The windows size **increases exponentially** by one MSS (maximal segment size) for every acknowledged segment when **we do not expect congestion**: it doubles every RTT.
+
+The windows size **increases linearly** by one MSS every RTT (maximal segment size) when **we expect congestion**: it doubles every RTT.
+
+##### Basic algorithm 
+
+Start the exponential increase (**slow start**) with a congestion window of 1 MSS. When the sender times out, it: 
+
+- Resets the window to 1 MSS and,
+- Sets the **congestion threshold** to half of the last window size. 
+
+Transition to linear increase (**congestion avoidance**) when:
+
+- The window reaches the congestion threshold or,
+- The sender receives three duplicate acknowledgments. 
+
+##### Fast Recovery 
+
+In fast recovery, the value of the congestion window is increased by 1 MSS for every duplicate ACK received for the missing segment that caused TCP to enter the fast-recovery state. Eventually, when an ACK arrives for the missing segment, TCP enters the congestion-avoidance state after deflating the congestion window. If a timeout event occurs, fast recovery transitions to the slow-start state after performing the same actions as in slow start and congestion avoidance: the value of the congestion window is set to 1 MSS, and the value of the congestion threshold is set to half the value of the congestion window when the loss event occurred.
+
+### Security 
+
+One possible attack on the TCP protocol is **connection hijacking**: it consists in impersonating one of the parties and provide fake content:  
+
+![](TCP_hijacking_1.png)
+
+One defense mechanism would be to randomize part of the content sent. For example, in the above picture, Jack knows the sequence number starts at 1 and can predict and impersonate Bob with the acknowledgement and sequence numbers Alice expects. If the sequence number started at a random value, Jack couldn't have guessed it. 
+
+![](TCP_hijacking_2.png)
+
+Another possible attack is a **memory exhaustion**: it consists in exhausting the server's memory with useless data. A defense would be to use some kind of authentication so that the client can authenticate itself when communicating with the server: only trusted client will receive "non forgeable tickets". 
