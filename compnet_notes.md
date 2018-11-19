@@ -441,6 +441,28 @@ A UDP socket is fully identified by the two tuple: `(destination IP, destination
 
 A TCP socket is identified by the four-tuple: `(source IP address, source port number, destination IP address, destination port number)`. Thus, when a TCP segment arrives from the network to a host, the host **uses all four values** to direct (demultiplex) the segment to the appropriate socket. Two arriving TCP segments with different source IP addresses or source port numbers will be directed to two different sockets. A process must use a different TCP connection socket per remote process.
 
+## Connectionless Transport: UDP
+
+UDP does just about as little as a transport protocol can do. It takes messages from the application process, attaches source and destination port number fields for the multiplexing/demultiplexing service, adds two other small fields, and passes the resulting segment to the network layer.
+
+If the segment arrives at the receiving host, UDP uses the destination port number to deliver the segment’s data to the correct application process. Note that with UDP there is **no handshaking** between sending and receiving transport layer entities before sending a segment. For this reason, UDP is said to be **connectionless**.
+
+Many applications are better suited for UDP for the following reasons:
+
+- Finer application-level control over what data is sent, and when: 
+	- Under UDP, as soon as an application process passes data to UDP, UDP will package the data inside a UDP segment and immediately pass the segment to the network layer. 
+	- TCP, on the other hand, has a congestion-control mechanism that throttles the transport-layer TCP sender when one or more links between the source and destination hosts become excessively congested.
+- No connection establishment:
+	- TCP uses a three-way handshake before it starts to transfer data. 
+	- UDP just blasts away without any formal preliminaries. 
+	- Thus UDP **does not introduce any delay to establish a connection**. 
+- No connection state:
+	- TCP maintains connection state in the end systems. This connection state includes receive and send buffers, congestion-control parameters, and sequence and acknowledgment number parameters.
+	- UDP **does not maintain connection state** and does not track any of these parameters 
+	- A server devoted to a particular application can typically support many more active clients when the application runs over UDP rather than TCP.
+- Small packet header overhead:
+	- The TCP segment has 20 bytes of header overhead in every segment, whereas UDP has only 8 bytes of overhead.
+
 ## Principles of Reliable Data Transfer
 
 It is the responsibility of a reliable data transfer protocol to implement reliable data delivery. 
@@ -627,7 +649,7 @@ Congestion causes large queuing delays as the packet-arrival rate nears the link
 At the broadest level, we can distinguish among congestion-control approaches by whether the network layer provides any explicit assistance to the transport layer for congestion-control purposes.
 
 ##### End-to-end congestion control
-In an end-to-end approach to congestion control, the network layer provides no explicit support to the transport layer for congestion-control purposes. Even the presence of congestion in the network must be inferred by the end systems based only on observed network behavior (for example, packet loss and delay). 
+In an end-to-end approach to congestion control, the network layer provides no explicit support to the transport layer for congestion-control purposes. Even the presence of congestion in the network must be inferred by the end systems based only on observed network behaviour (for example, packet loss and delay). 
 
 ##### Network-assisted congestion control
 
@@ -643,12 +665,12 @@ The TCP congestion-control mechanism operating at the sender keeps track of an a
 
 ##### Detecting congestion on the path between sender and destination
 
-A “loss event” at a TCP sender as the occurrence of either a timeout or the receipt of three duplicate ACKs from the receiver. When there is excessive congestion, then one (or more) router buffers along the path overflows, causing a datagram (con- taining a TCP segment) to be dropped. The dropped datagram, in turn, results in a loss event at the sender—either a timeout or the receipt of three duplicate ACKs—which is taken by the sender to be an indication of congestion on the sender-to-receiver path.
+A “loss event” at a TCP sender as the occurrence of either a timeout or the receipt of three duplicate ACKs from the receiver. When there is excessive congestion, then one (or more) router buffers along the path overflows, causing a datagram (containing a TCP segment) to be dropped. The dropped datagram, in turn, results in a loss event at the sender—either a timeout or the receipt of three duplicate ACKs—which is taken by the sender to be an indication of congestion on the sender-to-receiver path.
 
 ##### Basic Algorithm for TCP Congestion Control
 
 TCP will take the arrival of acknowledgments as an indication that all is well and will use acknowledgments to increase its congestion window size.  
-If acknowledgments arrive at a relatively slow rate, then the congestion window will be increased at a relatively slow rate. If acknowledgments arrive at a high rate, then the congestion window will be increased more quickly. TCP is said to be **self clocking**: it infers the adequate congestion window based on acknowlegments.
+If acknowledgments arrive at a relatively slow rate, then the congestion window will be increased at a relatively slow rate. If acknowledgments arrive at a high rate, then the congestion window will be increased more quickly. TCP is said to be **self clocking**: it infers the adequate congestion window based on acknowledgments.
 
 TCP uses the following guiding principles:
 
@@ -681,8 +703,109 @@ One possible attack on the TCP protocol is **connection hijacking**: it consists
 
 ![](TCP_hijacking_1.png)
 
-One defense mechanism would be to randomize part of the content sent. For example, in the above picture, Jack knows the sequence number starts at 1 and can predict and impersonate Bob with the acknowledgement and sequence numbers Alice expects. If the sequence number started at a random value, Jack couldn't have guessed it. 
+One defence mechanism would be to randomise part of the content sent. For example, in the above picture, Jack knows the sequence number starts at 1 and can predict and impersonate Bob with the acknowledgement and sequence numbers Alice expects. If the sequence number started at a random value, Jack couldn't have guessed it. 
 
 ![](TCP_hijacking_2.png)
 
-Another possible attack is a **memory exhaustion**: it consists in exhausting the server's memory with useless data. A defense would be to use some kind of authentication so that the client can authenticate itself when communicating with the server: only trusted client will receive "non forgeable tickets". 
+Another possible attack is a **memory exhaustion**: it consists in exhausting the server's memory with useless data. A defence would be to use some kind of authentication so that the client can authenticate itself when communicating with the server: only trusted client will receive "non forgeable tickets". 
+
+# Network Layer
+
+Unlike the transport and application layers, there is a piece of the network layer in each and every host and router in the network. Because of this, network-layer protocols are among the most challenging in the protocol stack.
+
+## Network Layer Functions 
+
+### Forwarding and routing 
+
+The role of the network layer is thus deceptively simple: to move packets from a sending host to a receiving host. To do so, two important network-layer functions can be identified:
+
+- **Forwarding**: when a packet arrives at a router’s input link, the router must move the packet to the appropriate output link. 
+- **Routing**: the network layer must determine the route or path taken by packets as they flow from a sender to a receiver. The algorithms that calculate these paths are referred to as **routing algorithms**.
+
+#### Forwarding Tables
+
+Every router has a **forwarding table**. A router forwards a packet by examining the value of a field in the arriving packet’s header, and then using this header value to index into the router’s forwarding table. The value stored in the forwarding table entry for that header indicates the router’s outgoing link interface to which that packet is to be forwarded.
+
+Forwarding tables can be populated manually, with a connection setup, or with routing algorithms.
+
+### Network Layer Services
+
+The services that the network layer can potentially offer are:
+
+- Guaranteed (in-order) delivery;
+- Guaranteed delivery with bounded delay: delivery within a specified host-to-host delay bound;
+- Guaranteed minimum throughput;
+- Security (authenticity, confidentiality).
+
+## Virtual Circuit and Datagram Networks
+
+A network layer can provide connectionless service or connection service between two hosts. Network-layer connection and connectionless services in many ways parallel transport-layer connection-oriented and connectionless services. Computer networks that provide only a connection service at the network layer are called **virtual-circuit** (VC) networks; computer networks that provide only a connectionless service at the network layer are called **datagram** networks
+
+### Virtual Circuit Networks
+
+A VC consists of (1) a path (a series of links and routers) between the source and destination hosts, (2) VC numbers, one number for each link along the path, and (3) entries in the forwarding table in each router along the path. 
+
+A packet belonging to a virtual circuit will carry a VC number in its header. Because a virtual circuit may have a different VC number on each link, each intervening router must replace the VC number of each traversing packet with a new VC number. The new VC number is obtained from the forwarding table.
+
+In a VC network, the network’s routers must **maintain connection state** information for the ongoing connections. Specifically, each time a new connection is established across a router, a new connection entry must be added to the router’s forwarding table; and each time a connection is released, an entry must be removed from the table.
+
+> VC Networks use connection switching: it is necessary to offer performance guarantees as a network-layer service. It uses a **per-connection forwarding** state: its forwarding table is populated by connection setup which simply does not scale. Maintaining state for all connections locally on all routers is very costly.
+
+### Datagram Networks
+
+In a datagram network, each time an end system wants to send a packet, it stamps the packet with the address of the destination end system and then pops the packet into the network.
+
+When a packet arrives at the router, the router uses the packet’s destination address to look up the appropriate output link interface in the forwarding table.  
+The router **matches a prefix** of the packet’s destination address with the entries in the table; if there’s a match, the router forwards the packet to a link associated with the match.  
+When there are multiple matches, the router uses the **longest prefix matching** rule; that is, it finds the longest matching entry in the table and forwards the packet to the link interface associated with the longest prefix match.
+
+Although routers in datagram networks maintain no connection state information, they nevertheless maintain forwarding state information in their forwarding tables. However, the time scale at which this forwarding state information changes is relatively slow. Indeed, in a datagram network the **forwarding tables are modified by the routing algorithms**, which typically update a forwarding table every one-to-five minutes or so.
+
+Because forwarding tables in datagram networks can be modified at any time, a series of packets sent from one end system to another may follow different paths through the network and **may arrive out of order**.
+
+#### Why the datagram approach ?
+
+The Internet uses the datagram approach. It makes forwarding tables smaller, since there is no per-connection state in routers. Also, it makes routers simpler: they do not support connection setup nor tear-down. 
+
+## The Internet Protocol
+
+### IP addresses
+
+IP addresses are location dependent: it embeds location information. Also, address proximity implies location proximity. 
+
+Using IP addresses makes it possible to use longest prefix matching.
+
+An IP address is a number from `0` to `2^32 - 1`.
+
+The **subnet mask** specifies the length of the prefix: it specifies the number of most significant bits we should consider: the remaining bits are don't care.  
+The range is all the addresses having the same prefix. 
+
+![](ip_mask_example.png)
+
+#### IP Subnets
+
+Informally, an IP subnet is a contiguous network area that doesn't include any network. All the end systems and incident routers inside an IP subnet have IP addresses from the same IP prefix.  
+
+![](ip_subnets.png)
+
+#### IP address assignment 
+
+Each organisation obtains IP prefixes from its ISP or from a regulatory body. Then, network administrators assign IP addresses to router interfaces manually, and to end-systems manually or through DHCP.
+
+### Network Address Translation (NAT)
+
+![](nat.png)
+
+Every IP-capable device needs an IP address. With the proliferation of small office, home office (SOHO) subnets, this would seem to imply that whenever a SOHO wants to install a LAN to connect multiple machines, a range of addresses would need to be allocated by the ISP to cover all of the SOHO’s machines.  
+If the subnet grew bigger, a larger block of addresses would have to be allocated. But what if the ISP had already allocated the contiguous portions of the SOHO network’s current address range?
+
+There is a simple approach to address allocation: network address translation (NAT). The NAT-enabled router, residing in the home, has an interface that is part of the home network. 
+
+The address space 10.0.0.0/8 (figure) is one of three portions of the IP address space that is reserved for a private network.
+
+Devices within a given home network can send packets to each other using 10.0.0.0/24 addressing. However, packets forwarded beyond the home network into the larger global Internet clearly cannot use these addresses because there are hundreds of thousands of networks using this block of addresses. That is, the 10.0.0.0/24 addresses can only have meaning **within the given home network**.
+
+The NAT-enabled router does not look like a router to the outside world. Instead the NAT router behaves to the outside world as a **single device with a single IP** address. In essence, the NAT-enabled router is hiding the details of the home network from the outside world.  
+To distinguish devices inside the private network, the NAT translation table stores the IP addresses and port numbers. 
+
+> Network Address Translation resolves the IP address depletion problem.
