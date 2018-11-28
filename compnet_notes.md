@@ -809,3 +809,89 @@ The NAT-enabled router does not look like a router to the outside world. Instead
 To distinguish devices inside the private network, the NAT translation table stores the IP addresses and port numbers. 
 
 > Network Address Translation resolves the IP address depletion problem.
+
+## Routing
+
+A host is attached directly to one router, the default router for the host (also called the **first-hop router** for the host). The problem of routing a packet from source host to destination host clearly boils down to the problem of **routing the packet from source router to destination router**.
+
+The purpose of a **routing algorithm** is then simple: given a set of routers, with links connecting the routers, a routing algorithm finds a “good” path from source router to destination router. Typically, a good path is one that has the least **link cost**. An undirected graph is used to formulate routing problems. 
+
+> A graph G = (N,E) is a set N of nodes and a collection E of weighted edges, where each edge is a pair of nodes from N.  
+> In the context of network-layer routing, the nodes in the graph represent routers, and the edges connecting these nodes represent the physical links between these routers. The weight of an edge represents the cost of the corresponding link.  
+> A node y is said to be a neighbour of node x if there is an edge between x and y.
+
+![](network_graph.png)
+
+The goal of link-cost routing is then clear:
+
+> Given a router graph and link costs, find the least cost path from each source router to each destination router. 
+
+### The Link-State (LS) Routing Algorithm
+
+In a link-state algorithm, the network topology and all link costs are known, that is, available as input to the LS algorithm. In practice this is often accomplished by a link-state **broadcast algorithm** (to be seen).
+
+In such an algorithm, we focus on a specific router *u*, and compute the least-cost paths from *u* to all possible destinations. 
+
+The algorithm described below is **Dijkstra's Algorithm**:
+
+1. First, it considers only the links that are directly connected to router *u*. For any router on the network, it checks whether or not it can reach it and updates its forwarding table accordingly (with the next-hop router and the cost).
+2. Then, it considers *v*, the closest neighbour to router *u*, and checks whether it can improve any of the current paths by routing through *v*.
+3. It keeps on repeating step 2 by considering the next closest neighbour.
+4. It terminates when no further improvements can be made. 
+
+A link-state routing algorithm is a **centralised algorithm**, meaning it has complete information about connectivity and link costs.
+
+### Distance Vector Routing
+
+The **distance-vector** (DV) algorithm is **iterative**, **asynchronous**, and **distributed**:
+
+- It is *distributed* in that each node runs an instance of the algorithm, receives some information from one or more of its directly attached neighbours, performs a calculation, and then distributes the results of its calculation back to its neighbours.  
+- It is *iterative* in that this process continues on until no more information is exchanged between neighbours. 
+
+Each router takes as an input its local link costs and messages coming from its direct neighbours. Each router outputs the least-cost path to every other router. 
+
+Let `d_x(y)` be the cost of the least-cost path from node x to node y. Then the least costs are related by the Bellman-Ford equation:
+![](bellman_ford_equation.png)
+where the min in the equation is taken over all of x’s neighbours.
+
+The equation formalises the following decision:
+> Pick as the next hop for destination z, the neighbour that results in the least-cost path to z
+
+The basic idea for the Bellman-Ford algorithm is as follows:
+
+1. Each node x begins with `D_x(y)`, an estimate of the cost of the least-cost path from itself to node y, for all nodes. 
+2. All neighbours exchange information.
+3. Each router checks if whether it can improve current paths by leveraging the new information.
+4. Repeat steps 2 and 3 until no improvement is possible.
+
+#### Link-Cost Changes and Link Failure
+
+When a node running the DV algorithm detects a change in the link cost from itself to a neighbour, it updates its distance vector and, if there’s a change in the cost of the least-cost path, informs its neighbours of its new distance vector.
+
+A naïve implementation of the Bellman-Ford algorithm will cause **routing loops**. 
+
+#####Count-to-infinity scenario:
+> If we consider the following 3-router scenario:
+> 
+> - z routes through y, y routes through x
+> - y loses connectivity to x 
+> - y decides to route through z 
+> 
+> This will cause packets to ping-pong between y and z. It can take a very long time to resolve: y and z will update their forwarding tables and exchange information for a very long time until.
+
+##### A solution to the count-to-infinity scenario: Poisoned Reverse
+
+If z routes through y to get to destination x, then z will advertise to y that its distance to x is infinity, so that y never decides to route to x through z. With this solution, the algorithm re-converges very quickly.
+
+### A Comparison of LS and DV Routing Algorithms
+
+In the DV algorithm, each node talks to only its directly connected neighbours, but it provides its neighbours with least-cost estimates from itself to all the nodes (that it knows about) in the network.  
+
+In the LS algorithm, each node talks with all other nodes (via broadcast), but it tells them only the costs of its directly connected links.
+
+- Link State algorithm converges faster:
+	- Each router forms a full picture of the network, then locally solves the problem
+- Distance vector routing requires fewer messages:
+	- Each router only talks to its direct neighbours
+
+> When choosing between LS or DV routing, there is a trade-off between convergence and message overhead. 
