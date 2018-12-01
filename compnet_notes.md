@@ -880,7 +880,7 @@ A naïve implementation of the Bellman-Ford algorithm will cause **routing loops
 > This will cause packets to ping-pong between y and z. It can take a very long time to resolve: y and z will update their forwarding tables and exchange information for a very long time until.
 
 ##### A solution to the count-to-infinity scenario: Poisoned Reverse
-
+ 
 If z routes through y to get to destination x, then z will advertise to y that its distance to x is infinity, so that y never decides to route to x through z. With this solution, the algorithm re-converges very quickly.
 
 ### A Comparison of LS and DV Routing Algorithms
@@ -895,3 +895,190 @@ In the LS algorithm, each node talks with all other nodes (via broadcast), but i
 	- Each router only talks to its direct neighbours
 
 > When choosing between LS or DV routing, there is a trade-off between convergence and message overhead. 
+
+### Routing in the Internet
+
+An **autonomous system** (AS) consists of a group of routers that are typically under the same administrative control. Routers within the same AS all run the same routing algorithm and have information about each other. The routing algorithm running within an autonomous system is called an **intra-autonomous system routing protocol**.
+
+The **inter-AS routing protocol** handles obtaining reachability information from neighboring ASs and propagating the reachability information to all routers internal to the AS. 
+
+Intra-AS routing protocols are also known as interior gateway protocols. Historically, two routing protocols have been used extensively for routing within an autonomous system in the Internet: the **Routing Information Protocol** (RIP) and **Open Shortest Path First** (OSPF). 
+
+The Border Gateway Protocol, is the de facto standard inter-AS routing protocol in today’s Internet.
+
+# Network Security 
+
+We can identify the following desirable properties of secure communication:
+
+- **Confidentiality**: Only the sender and intended receiver should be able to understand the contents of the transmitted message. Because *eavesdroppers* may intercept the message, this necessarily requires that the message be somehow encrypted so that an intercepted message cannot be understood by an interceptor.
+- **Message integrity**: Alice and Bob want to ensure that the content of their communication is not altered, either maliciously or by accident, in transit. Extensions to the checksumming techniques that we encountered in reliable transport and data link protocols can be used to provide such message integrity. 
+- **End-point authentication:** Both the sender and receiver should be able to confirm the identity of the other party involved in the communication, to confirm that the other party is indeed who or what they claim to be.
+
+An intruder can potentially perform:
+
+- **Eavesdropping**: sniffing and recording control and data messages on the channel.
+- *Modification, insertion, or deletion* of messages or message content.
+
+## Principles of Cryptography
+
+Suppose that Alice wants to send a message to Bob. Alice’s message in its original form is known as **plaintext**, or cleartext. Alice encrypts her plaintext message using an **encryption algorithm** so that the encrypted message, known as **ciphertext**, looks unintelligible to any intruder.
+
+Alice provides a key, `K_A`, a string of numbers or characters, as input to the encryption algorithm. The encryption algorithm takes the key and the plaintext message, `m`, as input and produces ciphertext as output. The notation `K_A(m)` refers to the ciphertext form (encrypted using the key `K_A`) of the plaintext message, `m`. The actual encryption algorithm that uses key `K_A` will be evident from the context. Similarly, Bob will provide a key, `K_B`, to the decryption algorithm that takes the ciphertext and Bob’s key as input and produces the original plain-text as output. That is, if Bob receives an encrypted message `K_A(m)`, he decrypts it by computing `K_B(K_A(m)) = m`. 
+
+In **symmetric key** systems, Alice’s and Bob’s keys are identical and are secret: it is used both for the encryption and decryption algorithm to scramble to plaintext. 
+
+In **asymetric key** systems, Alice and Bob use different keys. They each have a private (key-) and public key (key+) such that:  
+``` key+(key-(ciphertext))= plaintext ```  
+``` key-(key+(ciphertext))= plaintext ```  
+In this case, the public keys are not secret, but are enough to guarantee secrecy. You can't guess information about a key from the other. Asymetric keys are computationally expensive. 
+
+##### Cryptographic Hash Functions
+
+A hash function takes an input, `m`, and computes a fixed-size string `H(m)` known as a hash. A cryptographic hash function is required to have the following additional property:
+
+- It is computationally infeasible to find any two different messages x and y such that H(x) = H(y).
+
+> A hash function maps a larger input to a smaller hash that should not reveal any information on input. It should also be hard to identify 2 inputs that lead to the same hash. 
+
+## Providing confidentiality
+
+Confidentiality can be provided using symmetric key cryptography:
+
+- Alice encrypts a message with the shared key
+- Only Bob can decrypt it with the shared key
+
+Confidentiality can be provided using asymetric key cryptography:
+
+- Alice encrypts a message with her shared key
+- Only Bob can decrypt it with his private key
+
+## Providing authenticity and integrity
+
+The goals are:
+
+1. Prevent impersonation:
+	- Enable Bob to verify sender identity:
+		- We cannot rely on source IP address.
+	- How? Alice could append a shared key to prove the message is from her.
+2. Enable key reuse:
+	- Enable both parties to reuse a key.
+	- Alice could append `key{message}` proving the message is from her without. revealing the key.
+3. Prevent replay:
+	- Prevent Persa from later replaying the message
+	- How? With **nonce**:
+		- Bob sends Alice a **nonce**;
+		- Alice appends `hash{nonce, shared key, message}` or digital signature of nonce + message. 
+
+### Message authentication code
+
+To perform **message integrity**, in addition to using cryptographic hash functions, Alice and Bob will need a shared secret `s`. This shared secret, which is nothing more than a string of bits, is called the **authentication key**. Using this shared secret, message integrity can be performed as follows:
+
+1. Alice creates message `m`, concatenates `s` with `m` to create `m + s`, and calculates the hash `H(m + s)` (for example with SHA-1). `H(m + s)` is called the **message authentication code** (**MAC**).
+2. Alice then appends the MAC to the message `m`, creating an extended message `(m, H(m + s))`, and sends the extended message to Bob.
+3. Bob receives an extended message `(m, h)` and knowing `s`, calculates the MAC `H(m + s)`. If `H(m + s) = h`, Bob concludes that everything is fine.
+
+### Digital Signature
+
+In a digital world, one often wants to indicate the owner or creator of a document, or to signify one’s agreement with a document’s content. A **digital signature** is a cryptographic technique for achieving these goals in a digital world.
+
+Digital signing should be done in a way that is verifiable and nonforgeable. That is, it must be possible to prove that a document signed by an individual was indeed signed by that individual, and that only that individual could have signed the document.
+
+##### To send a digitally signed message:
+![](digital_message_send.png)
+
+#####To receive a digitally signed message:
+![](digital_message_receive.png)
+
+### Public Key Certification
+
+An important application of digital signatures is **public key certification**, that is, certifying that a public key belongs to a specific entity.
+
+For public key cryptography to be useful, you need to be able to verify that you have the actual public key of the entity with whom you want to communicate. 
+>For example, when Alice wants to communicate with Bob using public key cryptography, she needs to verify that the public key that is supposed to be Bob’s is indeed Bob’s.
+
+Binding a public key to a particular entity is typically done by a **Certification Authority** (CA), whose job is to validate identities and issue certificates. A **CA** has the following roles:
+
+1. A **CA** verifies that an entity is who it says it is. When dealing with a CA, one must trust the CA to have performed a suitably rigorous identity verification.
+2. Once the CA verifies the identity of the entity, the CA creates a **certificate** that binds the public key of the entity to the identity. The certificate contains the public key and globally unique identifying information about the owner of the public key. The certificate is digitally signed by the CA. 
+
+## Securing Internet Protocols
+
+### Securing E-Mail
+
+Let’s consider designing an e-mail system that provides confidentiality, sender authentication, and message integrity. Alice first creates a preliminary package  that consists of her original message along with a digitally signed hash of the message. She then treats this preliminary package as a message in itself and sends this new message through the sender, creating a new package that is sent to Bob. 
+ 
+Note that, in this scheme, Alice uses public key cryptography twice: once with her own private key and once with Bob’s public key. Similarly, Bob also uses public key cryptography twice—once with his private key and once with Alice’s public key.
+
+![](alice_secure_email.png)
+
+### Securing TCP Connections: SSL
+
+We'll examine how cryptography can enhance TCP with security services, including confidentiality, data integrity, and end-point authentication. This enhanced version of TCP is commonly known as **Secure Sockets Layer** (**SSL**).
+
+We will refer to this simplified version of SSL as “almost-SSL.” Almost-SSL (and SSL) has three phases: *handshake*, *key derivation*, and *data transfer*. We now describe these three phases for a communication session between a client (Bob) and a server (Alice), with Alice having a private/public key pair and a certificate that binds her identity to her public key.
+
+#### Handshake
+
+![](almost_ssl_handshake.png)
+
+During the handshake phase, Bob needs to:
+
+- Establish a TCP connection with Alice,
+- Verify that Alice is really Alice, and
+- Send Alice a master secret key, which will be used by both Alice and Bob to generate all the symmetric keys they need for the SSL session.
+
+Note that once the TCP connection is established, Bob sends Alice a hello message. Alice then responds with her certificate, which contains her public key.
+
+Bob knows for sure that **the public key in the certificate belongs to Alice**. Bob then generates a Master Secret (MS) (which will only be used for this SSL session), encrypts the MS with Alice’s public key to create the Encyrpted Master Secret (EMS), and sends the EMS to Alice. Alice decrypts the EMS with her private key to get the MS. After this phase, both Bob and Alice (and no one else) know the master secret for this SSL session.
+
+#### Key Derivation
+
+In principle, the MS, now shared by Bob and Alice, could be used as the symmetric session key for all subsequent encryption and data integrity checking. It is, however, generally considered safer for Alice and Bob to each use different cryptographic keys, and also to use different keys for encryption and integrity checking. Thus, both Alice and Bob use the MS to generate four keys:
+
+- `E_B` = session encryption key for data sent from Bob to Alice
+- `M_B` = session MAC key for data sent from Bob to Alice
+- `E_A` = session encryption key for data sent from Alice to Bob
+- `M_A` = session MAC key for data sent from Alice to Bob
+
+At the end of the key derivation phase, both Alice and Bob have all four keys. The two encryption keys will be used to encrypt data; the two MAC keys will be used to verify the integrity of the data.
+
+#### Data Transfer
+
+Now that Alice and Bob share the same four session keys (`E_B`, `M_B`, `E_A`, and `M_A`), they can start to send secured data to each other over the TCP connection. Since TCP is a byte-stream protocol, a natural approach would be for SSL to encrypt application data on the fly and then pass the encrypted data on the fly to TCP.
+
+But if we were to do this, where would we put the MAC for the integrity check? To address this issue, SSL breaks the data stream into **records**, appends a MAC to each record for integrity checking, and then encrypts the record+MAC. The solution to provide data integrity for the entire message stream, is to use sequence numbers. 
+
+Bob doesn’t actually include a sequence number in the record itself, but when he calculates the MAC, he includes the sequence number in the MAC calculation. Thus, the MAC is now a hash of the data plus the MAC key MB plus the current sequence number.  
+Alice tracks Bob’s sequence numbers, allowing her to verify the data integrity of a record by including the appropriate sequence number in the MAC calculation. This use of SSL sequence numbers prevents a third party from carrying out a man-in-the- middle attack, such as reordering or replaying segments.
+
+### Network-Layer Security: Virtual Private Networks
+
+An institution that extends over multiple geographical regions often desires its own IP network, so that its hosts and servers can send data to each other in a secure and confidential manner. To achieve this goal, the institution could actually deploy a stand-alone physical network that is completely separate from the public Internet. Such a disjoint network is called a **private network**: it can be very costly, as the institution needs to purchase, install, and maintain its own physical network infrastructure.
+
+Instead of deploying and maintaining a private network, many institutions today create VPNs over the existing public Internet. To provide confidentiality, the inter-office traffic is encrypted before it enters the public Internet.
+
+In a VPN, two IP routers establish a "**secure tunnel**" (usually between branches of an office or company) where each source encrypts each IP packets using a shared key, and the source creates a MAC for encrypted IP packet using another shared key. 
+
+The key idea is to use a combination of symmetric and asymmetric keys and sequence numbers to avoid reordering attacks. 
+
+## Operational Security: firewalls
+
+A **firewall** is a combination of hardware and software that **isolates an organization’s internal network** from the Internet at large, allowing some packets to pass and blocking others. A firewall allows a network administrator to control access between the outside world and resources within the administered network by managing the traffic flow to and from these resources. A firewall has three goals: 
+
+- All traffic from outside to inside, and vice versa, passes through the firewall.
+- Only authorized traffic, as defined by the local security policy, will be allowed to pass.
+- The firewall itself is immune to penetration: the firewall itself is a device connected to the network. If not designed or installed properly, it can be compromised, in which case it provides only a false sense of security.
+
+![](firewall.png)
+
+### Traditional Packet Filters
+
+An organization typically has a gateway router connecting its internal network to its ISP. All traffic leaving and entering the internal network passes through this router, and it is at this router where packet filtering occurs.
+
+A packet filter examines each datagram in isolation, determining whether the datagram should be allowed to pass or should be dropped based on administrator-specific rules such as:
+
+- IP source or destination address
+- Protocol type in IP datagram field: TCP, UDP, ICMP, OSPF, and so on
+- TCP or UDP source and destination port
+- Different rules for datagrams leaving and entering the network
+- Different rules for the different router interfaces
