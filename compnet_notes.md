@@ -784,7 +784,7 @@ The range is all the addresses having the same prefix.
 
 #### IP Subnets
 
-Informally, an IP subnet is a contiguous network area that doesn't include any network. All the end systems and incident routers inside an IP subnet have IP addresses from the same IP prefix.  
+Informally, an IP subnet is a contiguous network area that doesn't include any router. All the end systems and incident routers inside an IP subnet have IP addresses from the same IP prefix.  
 
 ![](ip_subnets.png)
 
@@ -962,7 +962,7 @@ The goals are:
 	- How? Alice could append a shared key to prove the message is from her.
 2. Enable key reuse:
 	- Enable both parties to reuse a key.
-	- Alice could append `key{message}` proving the message is from her without. revealing the key.
+	- Alice could append `key{message}` proving the message is from her without revealing the key.
 3. Prevent replay:
 	- Prevent Persa from later replaying the message
 	- How? With **nonce**:
@@ -1051,6 +1051,16 @@ But if we were to do this, where would we put the MAC for the integrity check? T
 Bob doesn’t actually include a sequence number in the record itself, but when he calculates the MAC, he includes the sequence number in the MAC calculation. Thus, the MAC is now a hash of the data plus the MAC key MB plus the current sequence number.  
 Alice tracks Bob’s sequence numbers, allowing her to verify the data integrity of a record by including the appropriate sequence number in the MAC calculation. This use of SSL sequence numbers prevents a third party from carrying out a man-in-the- middle attack, such as reordering or replaying segments.
 
+#### Summary 
+
+> - The server sends its public key and a certificate.
+> - The client creates and sends a shared master key encrypted with the server's public key.
+> - They both use the master key to create four session keys:
+> 	- 1 key for encrypting client-server data;
+> 	- 1 key for creating the MAC for client-server data;
+> 	- 1 key for encrypting server-client data;
+> 	- 1 key for creating the MAC for server-client data;
+
 ### Network-Layer Security: Virtual Private Networks
 
 An institution that extends over multiple geographical regions often desires its own IP network, so that its hosts and servers can send data to each other in a secure and confidential manner. To achieve this goal, the institution could actually deploy a stand-alone physical network that is completely separate from the public Internet. Such a disjoint network is called a **private network**: it can be very costly, as the institution needs to purchase, install, and maintain its own physical network infrastructure.
@@ -1082,3 +1092,88 @@ A packet filter examines each datagram in isolation, determining whether the dat
 - TCP or UDP source and destination port
 - Different rules for datagrams leaving and entering the network
 - Different rules for the different router interfaces
+
+# Link Layer
+
+In order for a datagram to be transferred from source host to destination host, it must be moved over **each of the individual links** in the end-to-end path. 
+
+From the Internet point of view:
+
+- The link layer takes a packet from one end of one **IP subnet** to the other end, 
+- The network layer takes the packet from one end of **the Internet** to the other end.
+
+From the IP subnet's point of view:
+
+- The link layer takes a packet from one end of **one physical link** to the other end,
+- The network layer: takes a packet from one end of **the IP subnet** to the other end.
+
+#### Link Layer services
+
+Possible services that can be offered by a link-layer protocol include:
+
+- **Error detection.** Because there is no need to forward a datagram that has an error, many link-layer protocols provide a mechanism to detect such errors and drop corrupted packets. This is done by using checksums.   
+
+- **Reliable data delivery**. A link-layer reliable delivery service can be achieved with acknowledgments and retransmissions. A reliable delivery service is often used for **links that are prone to high error rates**, such as a *wireless link*, with the goal of correcting an error locally, on the link where the error occurs, rather than forcing an end-to-end retransmission of the data. 
+
+- **Link access**. A **medium access control** (**MAC**) protocol specifies the rules by which a packet is transmitted onto the link. 
+> For point-to-point links that have a single sender at one end of the link and a single receiver at the other end of the link, the MAC protocol is simple (or nonexistent)—the sender can send a frame whenever the link is idle. The more interesting case is when multiple nodes share a single broadcast link—the so-called multiple access problem. Here, the MAC protocol serves to coordinate the frame transmissions of the many nodes.
+
+
+## Address resolution 
+
+Hosts and routers have link-layer addresses. 
+> In truth, it is not hosts and routers that have link-layer addresses but rather their network adapters that have link-layer addresses. A host or router with multiple network interfaces will thus have multiple link-layer addresses associated with it, just as it would also have multiple IP addresses associated with it. 
+
+### MAC Addresses
+
+A link-layer address is called a **MAC address**. MAC addresses are 6-bytes long, and are usually expressed in hexadecimal notation. No two adapters have the same MAC address. 
+
+An adapter's MAC address has a flat structure (opposed to the IP addresses hierarchical structure), meaning it doesn’t change no matter where the adapter goes.
+
+### Address resolution protocol 
+
+Because there are both network-layer addresses and link-layer addresses, there is a need to translate between them. For the Internet, this is the job of the **Address Resolution Protocol** (**ARP**).
+
+> The main question here is: when a sending host knows the destination IP address, how does it figure out the destination MAC address ?
+
+A sending host broadcast its request and then receives a targeted response from the right entity. 
+
+**Broadcast:** an ARP request is sent to all entities in the IP subnet using the special MAC address `FF-FF-FF-FF-FF-FF`.
+
+#### ARP vs DNS
+
+**ARP relies on broadcasting:** there is no logically centralised map, and each entity knows its own MAC address and knows which requests to respond to.
+
+**DNS relies on infrastructure:** it has a logically centralised map that is stored in DNS servers. 
+
+### Forwarding
+
+The link-layer forwarding relies on a local switch process that determines the output link for each packet. This process relies on a forwarding table that maps destination MAC addresses to output links which is generated using ARP!
+
+The size of the forwarding table is the number of active destination MAC addresses in the IP subnet. 
+
+### Routing 
+
+Routing in the link layer does not rely on any protocol. Instead, it is **self-learning** and **relies on actual traffic**. 
+> When a packet with source MAC address `x` arrives at link y, the switch adds a `MAC x --> y` mapping to the forwarding table.  
+> It broadcasts the requests when it does not know the destination MAC address. 
+
+It is important to note that switches do not exchange any explicit routing information. 
+
+However, a naïve broadcasting of ARP requests can lead to infinite loops if nodes form a cycle. Therefore we use **spanning trees** to avoid those infinite loops.
+> A spanning tree covers all the nodes in a network but not necessarily all the edges.  
+
+Broadcast traffic is thus propagated only along tree. 
+
+### Keeping the layers independent 
+
+There are several reasons why hosts and router interfaces have MAC addresses in addition to network-layer addresses. 
+
+First, LANs are **designed for arbitrary network-layer protocols**, not just for IP and the Internet. If adapters were assigned IP addresses rather than “neutral” MAC addresses, then adapters would not easily be able to support other network-layer protocols (for example, IPX or DECnet). 
+
+Second, if adapters were to use network-layer addresses instead of MAC addresses, the network-layer address 
+would have to be stored in the adapter RAM and reconfigured every time the adapter was moved (or powered up).
+
+Another option is to not use any addresses in the adapters and have each adapter pass the data (typically, an IP datagram) of each frame it receives up the protocol stack. The network layer could then check for a matching network-layer address. One problem with this option is that the host would be interrupted by every frame sent on the LAN, including by frames that were destined for other hosts on the same broadcast LAN. 
+
+In summary, in order for the layers to be largely independent building blocks in a network architecture, different layers need to have their own addressing scheme.
